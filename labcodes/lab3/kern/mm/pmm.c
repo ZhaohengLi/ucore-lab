@@ -339,7 +339,7 @@ pmm_init(void) {
 // return vaule: the kernel virtual address of this pte
 pte_t *
 get_pte(pde_t *pgdir, uintptr_t la, bool create) {
-    /* LAB2 EXERCISE 2: YOUR CODE
+    /* LAB2 EXERCISE 2: 2017050025
      *
      * If you need to visit a physical address, please use KADDR()
      * please read pmm.h for useful macros
@@ -360,18 +360,20 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
      *   PTE_W           0x002                   // page table/directory entry flags bit : Writeable
      *   PTE_U           0x004                   // page table/directory entry flags bit : User can access
      */
-#if 0
-    pde_t *pdep = NULL;   // (1) find page directory entry
-    if (0) {              // (2) check if entry is not present
-                          // (3) check if creating is needed, then alloc page for page table
-                          // CAUTION: this page is used for page table, not for common data page
-                          // (4) set page reference
-        uintptr_t pa = 0; // (5) get linear address of page
-                          // (6) clear page content using memset
-                          // (7) set page directory entry's permission
+    pde_t *pdep = pgdir + PDX(la);
+    if ((*pdep & PTE_P) == 0) {
+        if (create) {
+            struct Page *p = alloc_page();
+            if (p==NULL) return NULL;
+            set_page_ref(p, 1);
+            uintptr_t pa = page2pa(p);
+            memset(KADDR(pa), 0, PGSIZE);
+            *pdep = (pa & ~0x0fff) | PTE_USER;
+        } else return NULL;
     }
-    return NULL;          // (8) return page table entry
-#endif
+    return (pte_t*)KADDR(PDE_ADDR(*pdep)) + PTX(la);
+
+    
 }
 
 //get_page - get related Page struct for linear address la using PDT pgdir
@@ -392,7 +394,7 @@ get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store) {
 //note: PT is changed, so the TLB need to be invalidate 
 static inline void
 page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
-    /* LAB2 EXERCISE 3: YOUR CODE
+    /* LAB2 EXERCISE 3: 2017050025
      *
      * Please check if ptep is valid, and tlb must be manually updated if mapping is updated
      *
@@ -408,15 +410,13 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      * DEFINEs:
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
-#if 0
-    if (0) {                      //(1) check if this page table entry is present
-        struct Page *page = NULL; //(2) find corresponding page to pte
-                                  //(3) decrease page reference
-                                  //(4) and free this page when page reference reachs 0
-                                  //(5) clear second page table entry
-                                  //(6) flush tlb
+    if (*ptep & PTE_P) {
+        struct Page *page = pte2page(*ptep);
+        page_ref_dec(page);
+        if (page->ref == 0) { free_page(page); }
+        *ptep = 0;
+        tlb_invalidate(pgdir, la);
     }
-#endif
 }
 
 //page_remove - free an Page which is related linear address la and has an validated pte
