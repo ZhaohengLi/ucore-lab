@@ -138,6 +138,7 @@ switch_to:                      # switch_to(from, to)
 ### 回答问题
 #### 在本实验的执行过程中，创建且运行了几个内核线程？
 创建了idle(pid=0)和init(pid=1)两个内核线程。
+idle的作用为等待并切换进程；init的作用为打印字符串。
 
 #### 语句local_intr_save(intr_flag);....local_intr_restore(intr_flag);在这里有何作用?
 local_intr_save 和 local_intr_restore 两个函数用于关闭/开启中断，保证进程切换时context的切换过程不会被其他中断打断，确保其是一个原子操作，从而避免严重的错误。
