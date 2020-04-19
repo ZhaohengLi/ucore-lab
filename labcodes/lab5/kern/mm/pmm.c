@@ -363,17 +363,25 @@ get_pte(pde_t *pgdir, uintptr_t la, bool create) {
      *   PTE_W           0x002                   // page table/directory entry flags bit : Writeable
      *   PTE_U           0x004                   // page table/directory entry flags bit : User can access
      */
+    // (1) find page directory entry
     pde_t *pdep = pgdir + PDX(la);
+    // (2) check if entry is not present
     if ((*pdep & PTE_P) == 0) {
-        if (create) {
-            struct Page *p = alloc_page();
-            if (p==NULL) return NULL;
-            set_page_ref(p, 1);
-            uintptr_t pa = page2pa(p);
-            memset(KADDR(pa), 0, PGSIZE);
-            *pdep = (pa & ~0x0fff) | PTE_USER;
-        } else return NULL;
+        // (3) check if creating is needed, then alloc page for page table
+        // CAUTION: this page is used for page table, not for common data page
+        if (!create) return NULL;
+        struct Page *p = alloc_page();
+        if (!p) return NULL;
+        // (4) set page reference
+        set_page_ref(p, 1);
+        // (5) get linear address of page
+        uintptr_t pa = page2pa(p);
+        // (6) clear page content using memset
+        memset(KADDR(pa), 0, PGSIZE);
+        // (7) set page directory entry's permission
+        *pdep = (pa & ~0x0fff) | PTE_USER;
     }
+    // (8) return page table entry
     return (pte_t*)KADDR(PDE_ADDR(*pdep)) + PTX(la);
 }
 
@@ -411,11 +419,18 @@ page_remove_pte(pde_t *pgdir, uintptr_t la, pte_t *ptep) {
      * DEFINEs:
      *   PTE_P           0x001                   // page table/directory entry flags bit : Present
      */
+    //(1) check if this page table entry is present
     if (*ptep & PTE_P) {
+        //(2) find corresponding page to pte
         struct Page *page = pte2page(*ptep);
+        //(3) decrease page reference
         page_ref_dec(page);
-        if (page->ref == 0) { free_page(page); }
+        //(4) and free this page when page reference reachs 0
+        if (page->ref == 0)
+            free_page(page);
+        //(5) clear second page table entry
         *ptep = 0;
+        //(6) flush tlb
         tlb_invalidate(pgdir, la);
     }
 }

@@ -472,16 +472,17 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
     */
     /*
      * LAB5 CHALLENGE ( the implmentation Copy on Write)
-		There are 2 situlations when code comes here.
-		  1) *ptep & PTE_P == 1, it means one process try to write a readonly page. 
-		     If the vma includes this addr is writable, then we can set the page writable by rewrite the *ptep.
-		     This method could be used to implement the Copy on Write (COW) thchnology(a fast fork process method).
-		  2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
-		     We should add the LAB3's results here.
+        There are 2 situlations when code comes here.
+          1) *ptep & PTE_P == 1, it means one process try to write a readonly page.
+             If the vma includes this addr is writable, then we can set the page writable by rewrite the *ptep.
+             This method could be used to implement the Copy on Write (COW) thchnology(a fast fork process method).
+          2) *ptep & PTE_P == 0 & but *ptep!=0, it means this pte is a  swap entry.
+             We should add the LAB3's results here.
      */
         if(swap_init_ok) {
             struct Page *page=NULL;
-            //(1）According to the mm AND addr, try to load the content of right disk page into the memory which page managed.
+            //(1）According to the mm AND addr, try to load the content of right disk page
+            //    into the memory which page managed.
             swap_in(mm, addr, &page);
             //(2) According to the mm, addr AND page, setup the map of phy addr <---> logical addr
             page_insert(mm->pgdir, page, addr, perm);
@@ -493,8 +494,7 @@ do_pgfault(struct mm_struct *mm, uint32_t error_code, uintptr_t addr) {
             cprintf("no swap_init_ok but ptep is %x, failed\n",*ptep);
             goto failed;
         }
-   }
-
+    }
    ret = 0;
 failed:
     return ret;
